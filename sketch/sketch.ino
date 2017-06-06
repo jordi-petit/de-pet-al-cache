@@ -118,6 +118,14 @@ int mq7_cal;
 int mq7_target;
 int mq7_vals[5];
 
+// Variables to read text
+char text[16];
+char menu[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789<!";
+int mlen;
+int tpos;
+int mpos;
+
+
 
 
 // ***************************************************************************
@@ -258,20 +266,93 @@ void fart_completed() {
     lcd.setCursor(0, 0); lcd.print("Pet detectat!");
     lcd.setCursor(0, 1); lcd.print("Puntuacio: "); lcd.print(score);
 
-    wait_for_press(sign_info);
+    wait_for_press(sign1);
 }
 
 
-void sign_info() {
-    screen("Entrar el vostre nom", "per signar cache.");
-    wait_for_press(sign);
+void sign1() {
+    screen("Entreu nom", "per signar cache.");
+    wait_for_press([=] {sign2();});
+}
+
+
+void sign2() {
+    strcpy(text, "...............");
+    tpos = 0;
+    mpos = 0;
+    mlen = strlen(menu);
+    lcd.clear();
+    lcd.cursor();
+    refresh();
+    sign();
+}
+
+
+void erase() {
+    if (--tpos == -1) tpos = 0;
+    text[tpos] = '.';
+}
+
+void append() {
+    if (tpos == 15) tpos = 14;
+    text[tpos++] = menu[mpos];
+}
+
+void refresh() {
+    lcd.setCursor(0, 0);
+    lcd.print(text);
+
+    lcd.setCursor(0, 1);
+    if (menu[mpos] == '<') {
+        lcd.print("ESBORRA");
+    } else if (menu[mpos] == '!') {
+        lcd.print("ACCEPTA");
+    } else {
+        lcd.print("-> ");
+        lcd.print(menu[mpos]);
+        lcd.print(" <-");
+    }
+    lcd.setCursor(tpos, 0);
+}
+
+void again() {
+    refresh();
+    q.in(250, [=] {sign();});
 }
 
 
 void sign() {
-    lcd.clear();
-    lcd.setCursor(0, 0); lcd.print("pantalla de");
-    lcd.setCursor(0, 1); lcd.print("la firma");
+
+
+    if (joystick.switch_on()) {
+        if (menu[mpos] == '<') {
+            erase();
+        } else if (menu[mpos] == '!') {
+            // TBD
+        } else {
+            append();
+        }
+        return again();
+    } else {
+        if (joystick.x_high()) {
+            if (++mpos >= mlen) mpos = 0;
+            return again();
+        } else if (joystick.x_low()) {
+            if (--mpos < 0) mpos = mlen - 1;
+            return again();
+        } else if (joystick.y_low()) {
+            append();
+            return again();
+        } else if (joystick.y_high()) {
+            erase();
+            return again();
+        }
+    }
+    q.in(1, [=] {sign();});
+}
+
+int read_mq7() {
+    return map(analogRead(pin_MQ7), 0, 1023, 0, 100);
 }
 
 
@@ -280,12 +361,6 @@ void debug_mq7() {
     Serial.println(read_mq7());
     q.in(1000, [=] {debug_mq7;});
 }
-
-
-int read_mq7() {
-    return map(analogRead(pin_MQ7), 0, 1023, 0, 100);
-}
-
 
 
 void setup() {
@@ -312,10 +387,11 @@ void setup() {
     // Set timeouts
     Joystick* p = &joystick;
     q.in(joystick.delay, [=] {Joystick::update(p);});
-    q.in(1, [=] {debug_mq7();});
+    q.in(1000, [=] {debug_mq7();});
 
     // Show first screen
-    hello1();
+    // hello1();
+    sign2();
 }
 
 
