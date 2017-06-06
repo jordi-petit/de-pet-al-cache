@@ -293,10 +293,12 @@ void erase() {
     text[tpos] = '.';
 }
 
+
 void append() {
     if (tpos == 15) tpos = 14;
     text[tpos++] = menu[mpos];
 }
+
 
 void refresh() {
     lcd.setCursor(0, 0);
@@ -308,12 +310,13 @@ void refresh() {
     } else if (menu[mpos] == '!') {
         lcd.print("ACCEPTA");
     } else {
-        lcd.print("-> ");
+        lcd.print("<");
         lcd.print(menu[mpos]);
-        lcd.print(" <-");
+        lcd.print(">    ");
     }
     lcd.setCursor(tpos, 0);
 }
+
 
 void again() {
     refresh();
@@ -322,8 +325,6 @@ void again() {
 
 
 void sign() {
-
-
     if (joystick.switch_on()) {
         if (menu[mpos] == '<') {
             erase();
@@ -350,6 +351,7 @@ void sign() {
     }
     q.in(1, [=] {sign();});
 }
+
 
 int read_mq7() {
     return map(analogRead(pin_MQ7), 0, 1023, 0, 100);
