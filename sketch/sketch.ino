@@ -1,4 +1,6 @@
 #include <LiquidCrystal.h>
+#include <EEPROM.h>
+
 #include "queue.hh"
 
 
@@ -80,6 +82,30 @@ struct Joystick {
 
 
 // ***************************************************************************
+// EPPROM access to save/read logs
+// ***************************************************************************
+
+
+void save_entry(int pos, char* text) {
+    // writes 16 bytes of text to position pos*16.
+    pos *= 16;
+    for (int i = 0; i < 16; ++i) {
+        EEPROM.write(pos + i, text[i]);
+    }
+}
+
+
+void read_entry(int pos, char* text) {
+    // read 16 bytes of text from position pos*16.
+    pos *= 16;
+    for (int i = 0; i < 16; ++i) {
+        text[i] = EEPROM.read(pos + i);
+    }
+    text[15] = 0;
+}
+
+
+// ***************************************************************************
 // Constants for the application
 // ***************************************************************************
 
@@ -120,7 +146,7 @@ int mq7_vals[5];
 
 // Variables to read text
 char text[16];
-char menu[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789<!";
+char menu[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789<!";
 int mlen;
 int tpos;
 int mpos;
@@ -165,10 +191,49 @@ void wait_for_release(Action action) {
     else q.in(1, [=] {wait_for_release(action);});
 }
 
+void on_answer(Action yes, Action no, bool op=true) {
+    lcd.setCursor(0, 1);
+    if (op) lcd.print("<Si>  No ");
+    else    lcd.print(" Si  <No>");
+
+    if (joystick.switch_on()) {
+        return q.in(250, [=] {
+            if (op) yes();
+            else no();
+        });
+    } else {
+        if ((op and joystick.x_high()) or (not op and joystick.x_low())) {
+            op = not op;
+        }
+    }
+    q.in(1, [=] {on_answer(yes, no, op);});
+}
+
 
 void hello1() {
+    digitalWrite(pin_Red,       LOW );
+    digitalWrite(pin_Yellow,    HIGH);
+    digitalWrite(pin_Green,     HIGH);
     screen("Benvinguts!", "Piqueu el boto.");
-    wait_for_press(hello2);
+    wait_for_press(show_log);
+}
+
+
+void show_log() {
+    screen("Veure visites?", "");
+    on_answer([=] {show_entry(1);}, hello2);
+}
+
+void show_entry(int n) {
+    int cnt = int(EEPROM.read(0));
+    char text[16];
+    if (n > cnt) return show_log();
+    read_entry(n, text);
+    lcd.clear();
+    lcd.print("Numero "); lcd.print(n);
+    lcd.setCursor(0, 1);
+    lcd.print(text);
+    wait_for_press([=] {show_entry(n+1);});
 }
 
 
@@ -211,7 +276,7 @@ void calibrate() {
     lcd.print(max_steps - cal_steps + 1); lcd.print("s ");
 
     if ((mq7 <= 20 and cal_steps >= min_steps) or cal_steps == max_steps) wait_for_fart(1);
-    else q.in(1000, [=] {calibrate;});
+    else q.in(1000, [=] {calibrate();});
 }
 
 
@@ -252,7 +317,7 @@ void wait_for_fart(int init) {
     lcd.print("Nivell: "); lcd.print(val); lcd.print("%  ");
 
     if (success) fart_completed();
-    else q.in(400, [=] {wait_for_fart;});
+    else q.in(400, [=] {wait_for_fart(0);});
 }
 
 
@@ -271,13 +336,13 @@ void fart_completed() {
 
 
 void sign1() {
-    screen("Entreu nom", "per signar cache.");
+    screen("Entreu nom", "pel registre.");
     wait_for_press([=] {sign2();});
 }
 
 
 void sign2() {
-    strcpy(text, "...............");
+    strcpy(text, "               ");
     tpos = 0;
     mpos = 0;
     mlen = strlen(menu);
@@ -290,7 +355,7 @@ void sign2() {
 
 void erase() {
     if (--tpos == -1) tpos = 0;
-    text[tpos] = '.';
+    text[tpos] = ' ';
 }
 
 
@@ -306,13 +371,13 @@ void refresh() {
 
     lcd.setCursor(0, 1);
     if (menu[mpos] == '<') {
-        lcd.print("ESBORRA");
+        lcd.print("<Esborra>");
     } else if (menu[mpos] == '!') {
-        lcd.print("ACCEPTA");
+        lcd.print("<Accepta>");
     } else {
         lcd.print("<");
         lcd.print(menu[mpos]);
-        lcd.print(">    ");
+        lcd.print(">      ");
     }
     lcd.setCursor(tpos, 0);
 }
@@ -329,7 +394,7 @@ void sign() {
         if (menu[mpos] == '<') {
             erase();
         } else if (menu[mpos] == '!') {
-            // TBD
+            return q.in(250, confirm_name);
         } else {
             append();
         }
@@ -351,6 +416,32 @@ void sign() {
     }
     q.in(1, [=] {sign();});
 }
+
+void confirm_name() {
+    lcd.noCursor();
+    screen(text, "");
+    on_answer(goodbye2, sign1, false);
+}
+
+
+void goodbye2() {
+    int cnt = int(EEPROM.read(0));
+    ++cnt;
+    save_entry(cnt, text);
+    EEPROM.write(0, cnt);
+
+    screen("Nom desat", "al registre.");
+    wait_for_press(goodbye3);
+}
+
+
+void goodbye3() {
+    lcd.noCursor();
+    screen("Gracies per", "jugar. Adeu!");
+    wait_for_press(hello1);
+}
+
+
 
 
 int read_mq7() {
@@ -392,8 +483,7 @@ void setup() {
     q.in(1000, [=] {debug_mq7();});
 
     // Show first screen
-    // hello1();
-    sign2();
+    hello1();
 }
 
 
