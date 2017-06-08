@@ -1,11 +1,20 @@
 # De pet al cache!
 
-This project is a geocache made with Arduino where geocachers
-must fart in order to log their visit.
+This project is a geocache made with an Arduino and some sensors.
+Geocachers must fart in order to log their visit.
+
 
 ## Hardware
 
-TBD
+Missing description. See the [fritzing diagram](doc/design.fzz).
+
+![Design](doc/design_bb.png)
+
+
+## Software
+
+Missing description.
+
 
 ## Requirements
 
