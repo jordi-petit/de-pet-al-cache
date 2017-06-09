@@ -251,6 +251,12 @@ void hello3() {
 
 void hello4() {
     screen("Primer cal cali-", "brar el sensor.");
+    wait_for_press(hello5);
+}
+
+
+void hello5() {
+    screen("Calibrar pot", "trigar un minut.");
     wait_for_press(calibrate);
 }
 
@@ -259,8 +265,8 @@ void hello4() {
 
 void calibrate() {
     static int cal_steps = 0;
-    const int max_steps = 15;
-    const int min_steps = 5;
+    const int max_steps = 60;
+    const int min_steps = 15;
 
     if (cal_steps == 0) {
         lcd.clear();
@@ -452,7 +458,7 @@ int read_mq7() {
 void debug_mq7() {
     Serial.print("mq7: ");
     Serial.println(read_mq7());
-    q.in(1000, [=] {debug_mq7;});
+    q.in(1000, debug_mq7);
 }
 
 
