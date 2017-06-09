@@ -10,6 +10,8 @@ Missing description. See the [fritzing diagram](doc/design.fzz).
 
 ![Design](doc/design_bb.png)
 
+![Picture](doc/picture.jpg)
+
 
 ## Software
 
